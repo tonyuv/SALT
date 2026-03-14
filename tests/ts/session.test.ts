@@ -63,7 +63,7 @@ describe("Session", () => {
       sidecarPort: sidecar.port,
     };
 
-    const session = new Session(config);
+    const session = new Session({ config });
     const result = await session.run();
 
     expect(result.total_turns).toBe(3);
@@ -115,7 +115,7 @@ describe("Session", () => {
       sidecarPort: sidecar.port,
     };
 
-    const session = new Session(config);
+    const session = new Session({ config });
     const result = await session.run();
 
     expect(result.total_turns).toBe(1);
