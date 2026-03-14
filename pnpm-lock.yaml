@@ -20,6 +20,9 @@ importers:
       '@salt/orchestrator':
         specifier: workspace:*
         version: link:../orchestrator
+      '@salt/report-engine':
+        specifier: workspace:*
+        version: link:../report-engine
       '@salt/shared':
         specifier: workspace:*
         version: link:../shared
@@ -49,6 +52,9 @@ importers:
       '@salt/kill-chain':
         specifier: workspace:*
         version: link:../kill-chain
+      '@salt/report-engine':
+        specifier: workspace:*
+        version: link:../report-engine
       '@salt/shared':
         specifier: workspace:*
         version: link:../shared
@@ -59,6 +65,16 @@ importers:
       '@types/node':
         specifier: ^20.0.0
         version: 20.19.37
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+
+  packages/report-engine:
+    dependencies:
+      '@salt/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
       typescript:
         specifier: ^5.4.0
         version: 5.9.3
