@@ -29,9 +29,29 @@ export class SidecarClient {
     return data;
   }
 
-  async train(sessionId: string): Promise<{ loss: number; updated: boolean }> {
+  async train(
+    sessionId: string,
+    agentPurpose?: string
+  ): Promise<{ loss: number; updated: boolean }> {
     const { data } = await this.client.post("/train", {
       session_id: sessionId,
+      agent_purpose: agentPurpose,
+    });
+    return data;
+  }
+
+  async campaignLoad(
+    campaignDir: string
+  ): Promise<{ loaded: boolean; generator_loaded: boolean; discriminator_loaded: boolean }> {
+    const { data } = await this.client.post("/campaign/load", {
+      campaign_dir: campaignDir,
+    });
+    return data;
+  }
+
+  async campaignSave(campaignDir: string): Promise<{ saved: boolean }> {
+    const { data } = await this.client.post("/campaign/save", {
+      campaign_dir: campaignDir,
     });
     return data;
   }
