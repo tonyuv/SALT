@@ -11,7 +11,8 @@
   "dependencies": {
     "@salt/shared": "workspace:*",
     "@salt/kill-chain": "workspace:*",
-    "@salt/target-interface": "workspace:*"
+    "@salt/target-interface": "workspace:*",
+    "@salt/report-engine": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.4.0",
