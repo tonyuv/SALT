@@ -8,6 +8,7 @@ export default defineConfig({
       "@salt/kill-chain": path.resolve(__dirname, "packages/kill-chain/src"),
       "@salt/target-interface": path.resolve(__dirname, "packages/target-interface/src"),
       "@salt/orchestrator": path.resolve(__dirname, "packages/orchestrator/src"),
+      "@salt/report-engine": path.resolve(__dirname, "packages/report-engine/src"),
     },
   },
   test: {
