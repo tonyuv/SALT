@@ -1,0 +1,14 @@
+{
+  "name": "salt",
+  "private": true,
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "test:ts": "vitest run",
+    "test:py": "cd agent && pytest"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  }
+}

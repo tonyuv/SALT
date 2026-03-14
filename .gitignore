@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.salt/
+*.pt
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.superpowers/
