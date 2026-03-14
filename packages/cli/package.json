@@ -1,0 +1,21 @@
+{
+  "name": "@salt/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "salt": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@salt/shared": "workspace:*",
+    "@salt/orchestrator": "workspace:*",
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/node": "^20.0.0"
+  }
+}
