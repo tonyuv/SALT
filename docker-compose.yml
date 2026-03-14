@@ -95,6 +95,8 @@ services:
       context: ./healthcheck
     container_name: salt-healthcheck-agent
     command: ["python", "-u", "agent.py"]
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
     depends_on:
       emqx:
         condition: service_healthy

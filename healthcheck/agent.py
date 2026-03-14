@@ -1,14 +1,19 @@
-"""SALT infrastructure health-check agent.
+"""SALT infrastructure health-check agent with AI analysis.
 
-Runs inside Docker, checks all services every 30s, and publishes
-structured log entries to /telemetry/agent_logs via MQTT.
+Runs inside Docker, checks all services every 30s, optionally sends results
+to Claude API for intelligent analysis, and publishes structured log entries
+to /telemetry/agent_logs via MQTT.
+
+Requirements:
+  - ANTHROPIC_API_KEY env var set for AI analysis (optional — falls back to
+    rule-based summaries if unset)
 """
 
 import json
 import logging
+import os
 import random
 import socket
-import subprocess
 import sys
 import time
 from datetime import datetime, timezone
@@ -31,6 +36,11 @@ CHECK_INTERVAL = 30
 MAX_RETRIES = 120
 RETRY_DELAY = 3
 
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+AI_ENABLED = bool(ANTHROPIC_API_KEY)
+
+
+# ── Infrastructure checks ─────────────────────────────────────────────────────
 
 def check_tcp(host: str, port: int, timeout: float = 3.0) -> bool:
     try:
@@ -103,24 +113,81 @@ def run_checks() -> list[dict]:
         "message": f"Web dashboard {'responding' if dash_ok else 'NOT RESPONDING'} on :8080",
     })
 
-    # 6. Summary
-    issues = [e for e in entries if e["level"] != "OK"]
-    if issues:
-        summary = f"{len(issues)} issue(s) detected: {', '.join(e['component'] for e in issues)}"
-        level = "CRITICAL" if any(e["level"] == "CRITICAL" for e in issues) else "WARN"
-    else:
-        summary = f"All systems healthy. EMQX up, Kafka up ({topic_count} topics), ZK up, Dashboard up."
-        level = "OK"
-
-    entries.append({
-        "timestamp": now,
-        "level": level,
-        "component": "Agent Summary",
-        "message": summary,
-    })
-
     return entries
 
+
+# ── AI analysis ────────────────────────────────────────────────────────────────
+
+def get_ai_analysis(entries: list[dict]) -> str | None:
+    """Send check results to Claude API for intelligent analysis.
+
+    Returns the AI's analysis string, or None if AI is disabled or fails.
+    """
+    if not AI_ENABLED:
+        return None
+
+    try:
+        import anthropic
+
+        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+
+        checks_text = "\n".join(
+            f"[{e['level']}] {e['component']}: {e['message']}" for e in entries
+        )
+
+        message = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=300,
+            messages=[{
+                "role": "user",
+                "content": f"""You are a SALT infrastructure health-check agent monitoring a fleet telemetry pipeline.
+Analyze these check results and provide a brief (2-3 sentence) summary. If there are issues,
+suggest specific remediation steps (e.g. docker compose commands). If everything is healthy,
+note any patterns or observations worth tracking.
+
+Check results:
+{checks_text}
+
+Respond with only the analysis, no preamble."""
+            }],
+        )
+        return message.content[0].text
+    except Exception as exc:
+        logger.warning("AI analysis failed: %s", exc)
+        return None
+
+
+def build_summary(entries: list[dict], ai_analysis: str | None) -> dict:
+    """Build the summary log entry, using AI analysis if available."""
+    now = datetime.now(timezone.utc).isoformat()
+    issues = [e for e in entries if e["level"] != "OK"]
+
+    if issues:
+        level = "CRITICAL" if any(e["level"] == "CRITICAL" for e in issues) else "WARN"
+    else:
+        level = "OK"
+
+    if ai_analysis:
+        message = ai_analysis
+        component = "AI Agent Summary"
+    else:
+        if issues:
+            message = f"{len(issues)} issue(s) detected: {', '.join(e['component'] for e in issues)}"
+        else:
+            topic_entry = next((e for e in entries if e["component"] == "Kafka Topics"), None)
+            topic_count = topic_entry["message"].split()[0] if topic_entry else "?"
+            message = f"All systems healthy. EMQX up, Kafka up ({topic_count} topics), ZK up, Dashboard up."
+        component = "Agent Summary"
+
+    return {
+        "timestamp": now,
+        "level": level,
+        "component": component,
+        "message": message,
+    }
+
+
+# ── MQTT ───────────────────────────────────────────────────────────────────────
 
 def connect_mqtt() -> mqtt.Client:
     client = mqtt.Client(
@@ -142,9 +209,11 @@ def connect_mqtt() -> mqtt.Client:
     sys.exit(1)
 
 
+# ── Main loop ─────────────────────────────────────────────────────────────────
+
 def main() -> None:
-    # Wait for infrastructure to come up
     logger.info("Health-check agent starting, waiting for EMQX...")
+    logger.info("AI analysis: %s", "ENABLED (Claude Haiku)" if AI_ENABLED else "DISABLED (no ANTHROPIC_API_KEY)")
     time.sleep(10)
 
     client = connect_mqtt()
@@ -154,11 +223,19 @@ def main() -> None:
     try:
         while True:
             entries = run_checks()
+
+            # Get AI analysis (returns None if disabled or fails)
+            ai_analysis = get_ai_analysis(entries)
+
+            # Build summary (AI-powered or rule-based fallback)
+            summary = build_summary(entries, ai_analysis)
+            entries.append(summary)
+
+            # Publish all entries to MQTT
             for entry in entries:
                 payload = json.dumps(entry)
                 client.publish(TOPIC, payload, qos=1)
 
-            summary = entries[-1]
             logger.info("[%s] %s", summary["level"], summary["message"])
             time.sleep(CHECK_INTERVAL)
 
