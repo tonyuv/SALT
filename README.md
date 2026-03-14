@@ -102,7 +102,16 @@ SALT sends attack payloads as `{ "message": "..." }` and reads the response from
 
 ### Output
 
-After a session completes, SALT writes a JSON report to `.salt/reports/latest.json`:
+After a session completes, SALT generates 4 report formats in `.salt/reports/` (or `.salt/campaigns/<name>/reports/` for campaigns):
+
+| File | Format | Purpose |
+|------|--------|---------|
+| `latest.json` | JSON | Full machine-readable session data |
+| `latest.sarif` | SARIF v2.1.0 | CI/CD pipeline gating (GitHub Advanced Security, VS Code) |
+| `latest-replay.json` | JSON | Step-by-step exchange replay with attack/response/classification |
+| `latest-remediation.md` | Markdown | Hardening recommendations grouped by severity |
+
+Example JSON report:
 
 ```json
 {
@@ -119,6 +128,8 @@ After a session completes, SALT writes a JSON report to `.salt/reports/latest.js
   ]
 }
 ```
+
+SARIF severity mapping: Stage 0-1 → `note`, Stage 2-3 → `warning`, Stage 4-5 → `error`.
 
 ### Running Tests
 
@@ -163,22 +174,41 @@ Six categories of predefined techniques:
 
 ## Campaign Mode
 
-SALT learns across sessions. A **campaign** is a persistent test effort against a target agent type:
+SALT learns across sessions. A **campaign** is a persistent test effort against a target agent type. The adversarial agent's GAN weights are saved after each session and loaded for the next, so attack strategies improve over time.
 
 ```bash
 # Create a campaign
-salt campaign create my-assistant --adapter blackbox --endpoint http://localhost:3000/chat
+node packages/cli/dist/index.js campaign create my-assistant \
+  --target http://localhost:3000/chat \
+  --agent-purpose "customer support chatbot" \
+  --max-attempts 50
 
 # Run test sessions (adversarial agent gets smarter each time)
-salt run --campaign my-assistant
-salt run --campaign my-assistant
-salt run --campaign my-assistant
+node packages/cli/dist/index.js run --campaign my-assistant
+node packages/cli/dist/index.js run --campaign my-assistant
+node packages/cli/dist/index.js run --campaign my-assistant
 
-# Generate aggregate reports
-salt report --campaign my-assistant
+# Regenerate reports from the latest session
+node packages/cli/dist/index.js report --campaign my-assistant
 ```
 
-Model weights persist between sessions in `.salt/campaigns/`, so the adversarial agent builds an increasingly effective strategy over time.
+Campaign data is stored in `.salt/campaigns/<name>/`:
+
+```
+.salt/campaigns/my-assistant/
+├── config.json           # Target settings, agent purpose
+├── model/
+│   ├── generator.pt      # Trained generator weights
+│   └── discriminator.pt  # Trained discriminator weights
+├── sessions/             # Per-session results and logs
+└── reports/
+    ├── latest.json       # JSON report
+    ├── latest.sarif      # SARIF for CI/CD
+    ├── latest-replay.json
+    └── latest-remediation.md
+```
+
+The `--agent-purpose` flag tells the heuristic labeler what the target agent is supposed to do, enabling detection of task deviation (Stage 3) during training.
 
 ## Outputs
 
@@ -202,24 +232,27 @@ Model weights persist between sessions in `.salt/campaigns/`, so the adversarial
 ```
 salt/
 ├── packages/
-│   ├── cli/                  # CLI entry point (salt run)
-│   ├── orchestrator/         # SidecarManager + Session runner
+│   ├── cli/                  # CLI (salt run, salt campaign, salt report)
+│   ├── orchestrator/         # SidecarManager, Session, CampaignManager
+│   ├── report-engine/        # JSON, SARIF, replay, remediation formatters
 │   ├── kill-chain/           # KillChainTracker state machine
 │   ├── target-interface/     # BlackBoxAdapter (+ proxy in Phase 3)
 │   └── shared/               # Types + SidecarClient HTTP client
 ├── agent/                    # Python adversarial agent
 │   ├── salt_agent/
 │   │   ├── server.py         # FastAPI HTTP server
-│   │   ├── generator.py      # LSTM-based technique selector
-│   │   ├── discriminator.py  # 6-class kill chain classifier
+│   │   ├── generator.py      # LSTM-based technique selector (LogSoftmax)
+│   │   ├── discriminator.py  # 6-class kill chain classifier (raw logits)
+│   │   ├── training.py       # GAN training loop (REINFORCE + CrossEntropy)
+│   │   ├── heuristics.py     # Regex-based kill chain stage labeler
 │   │   ├── embeddings.py     # Sentence-transformer wrapper
 │   │   └── library.py        # Attack vector library loader
 │   └── library/
 │       └── techniques.json   # 16 attack techniques
 ├── tests/
-│   ├── ts/                   # TypeScript tests (vitest)
-│   └── python/               # Python tests (pytest)
-├── .salt/                    # Session reports (gitignored)
+│   ├── ts/                   # 41 TypeScript tests (vitest)
+│   └── python/               # 46 Python tests (pytest)
+├── .salt/                    # Campaigns + reports (gitignored)
 └── docs/
     └── superpowers/
         ├── specs/            # Design specifications
@@ -231,7 +264,7 @@ salt/
 | Phase | Scope | Outcome |
 |-------|-------|---------|
 | **1** | Core loop + black box adapter | `salt run` attacks a target and produces a JSON report — **complete** |
-| **2** | Campaign mode + full reporting | Persistent learning, SARIF, replay, remediation outputs |
+| **2** | Campaign mode + full reporting | Persistent learning, SARIF, replay, remediation outputs — **complete** |
 | **3** | Proxy adapter | Full I/O interception, tool call visibility |
 | **4** | Polish | CI/CD examples, docs, sample target agents |
 
