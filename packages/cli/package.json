@@ -12,6 +12,7 @@
   "dependencies": {
     "@salt/shared": "workspace:*",
     "@salt/orchestrator": "workspace:*",
+    "@salt/report-engine": "workspace:*",
     "commander": "^12.1.0"
   },
   "devDependencies": {
