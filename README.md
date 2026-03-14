@@ -44,6 +44,92 @@ SALT fills this gap with a controlled, local testing framework where a GAN-based
 
 The SALT Adversarial Agent is a unified GAN (Generative Adversarial Network) containing a generator that selects and sequences attack techniques, and a discriminator that evaluates target responses. They share a training loop that improves attack strategy across campaign sessions.
 
+## Getting Started
+
+### Prerequisites
+
+- Node.js ≥ 20
+- Python ≥ 3.11
+- pnpm (`npm install -g pnpm`)
+
+### Installation
+
+```bash
+# Clone the repo
+git clone https://github.com/tonyuv/SALT.git
+cd SALT
+
+# Install TypeScript dependencies
+pnpm install
+
+# Build all packages
+pnpm build
+
+# Set up Python virtual environment and install agent
+cd agent
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+cd ..
+```
+
+The first run will download the sentence-transformer model (~80MB) automatically.
+
+### Quick Start
+
+Run SALT against any agent that accepts JSON over HTTP:
+
+```bash
+# Basic usage — target agent at http://localhost:3000
+node packages/cli/dist/index.js run --target http://localhost:3000
+
+# Customize the request/response field names
+node packages/cli/dist/index.js run \
+  --target http://localhost:3000/chat \
+  --message-field "prompt" \
+  --response-field "output" \
+  --max-attempts 25
+
+# With authentication
+node packages/cli/dist/index.js run \
+  --target http://localhost:3000 \
+  --auth-header "Authorization" \
+  --auth-value "Bearer sk-your-token" \
+  --max-attempts 50
+```
+
+SALT sends attack payloads as `{ "message": "..." }` and reads the response from `{ "response": "..." }` by default. Use `--message-field` and `--response-field` to match your agent's API format.
+
+### Output
+
+After a session completes, SALT writes a JSON report to `.salt/reports/latest.json`:
+
+```json
+{
+  "session_id": "abc-123",
+  "max_stage_reached": 3,
+  "total_turns": 25,
+  "exchanges": [
+    {
+      "turn": 1,
+      "attack": { "technique_ids": ["PI-001"], "payload": "..." },
+      "target_response": { "text": "..." },
+      "classification": { "kill_chain_stage": 1, "confidence": 0.85 }
+    }
+  ]
+}
+```
+
+### Running Tests
+
+```bash
+# TypeScript tests
+npx vitest run
+
+# Python tests
+cd agent && python -m pytest ../tests/python/ -v
+```
+
 ## Kill Chain Model
 
 SALT measures compromise depth through a 6-stage kill chain:
@@ -116,28 +202,35 @@ Model weights persist between sessions in `.salt/campaigns/`, so the adversarial
 ```
 salt/
 ├── packages/
-│   ├── cli/                  # CLI entry point
-│   ├── orchestrator/         # Campaign/session lifecycle
-│   ├── kill-chain/           # Kill chain tracker state machine
-│   ├── target-interface/     # Black box + proxy adapters
-│   ├── report-engine/        # JSON, SARIF, replay, remediation
-│   └── shared/               # Shared types and API client
+│   ├── cli/                  # CLI entry point (salt run)
+│   ├── orchestrator/         # SidecarManager + Session runner
+│   ├── kill-chain/           # KillChainTracker state machine
+│   ├── target-interface/     # BlackBoxAdapter (+ proxy in Phase 3)
+│   └── shared/               # Types + SidecarClient HTTP client
 ├── agent/                    # Python adversarial agent
-│   ├── generator/            # Generator network
-│   ├── discriminator/        # Discriminator network
-│   ├── training/             # Shared training loop
-│   ├── library/              # Static attack vector library (JSON)
-│   └── server.py             # FastAPI HTTP server
-├── .salt/                    # Local campaign data (gitignored)
+│   ├── salt_agent/
+│   │   ├── server.py         # FastAPI HTTP server
+│   │   ├── generator.py      # LSTM-based technique selector
+│   │   ├── discriminator.py  # 6-class kill chain classifier
+│   │   ├── embeddings.py     # Sentence-transformer wrapper
+│   │   └── library.py        # Attack vector library loader
+│   └── library/
+│       └── techniques.json   # 16 attack techniques
+├── tests/
+│   ├── ts/                   # TypeScript tests (vitest)
+│   └── python/               # Python tests (pytest)
+├── .salt/                    # Session reports (gitignored)
 └── docs/
-    └── superpowers/specs/    # Design specifications
+    └── superpowers/
+        ├── specs/            # Design specifications
+        └── plans/            # Implementation plans
 ```
 
 ## Delivery Roadmap
 
 | Phase | Scope | Outcome |
 |-------|-------|---------|
-| **1** | Core loop + black box adapter | `salt run` attacks a target and produces a JSON report |
+| **1** | Core loop + black box adapter | `salt run` attacks a target and produces a JSON report — **complete** |
 | **2** | Campaign mode + full reporting | Persistent learning, SARIF, replay, remediation outputs |
 | **3** | Proxy adapter | Full I/O interception, tool call visibility |
 | **4** | Polish | CI/CD examples, docs, sample target agents |
