@@ -54,3 +54,35 @@ export interface Exchange {
   target_response: TargetResponse;
   classification: EvaluationResult;
 }
+
+export interface CampaignConfig {
+  name: string;
+  created: string;
+  target: {
+    endpoint: string;
+    responseField: string;
+    messageField: string;
+    auth?: { header: string; value: string };
+  };
+  agentPurpose: string;
+  maxAttempts: number;
+  timeLimitMs: number;
+  sessions: CampaignSessionEntry[];
+}
+
+export interface CampaignSessionEntry {
+  id: string;
+  timestamp: string;
+  maxStageReached: number;
+}
+
+export interface Technique {
+  id: string;
+  category: string;
+  subcategory: string;
+  name: string;
+  target_stages: number[];
+  template: string;
+  placeholders: string[];
+  remediation: string;
+}
