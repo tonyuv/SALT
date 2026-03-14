@@ -240,7 +240,7 @@
   <div id="tab-architecture" class="tab-content active">
     <div class="arch-wrap">
       <div class="arch-diagram">
-        <svg viewBox="0 0 1550 720" xmlns="http://www.w3.org/2000/svg" style="max-width:1550px;width:100%;">
+        <svg viewBox="0 0 1550 780" xmlns="http://www.w3.org/2000/svg" style="max-width:1550px;width:100%;">
           <defs>
             <marker id="ah" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#4e9fff" opacity="0.6"/></marker>
             <marker id="ah2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#22c55e" opacity="0.6"/></marker>
@@ -405,9 +405,19 @@
           <line x1="490" y1="530" x2="490" y2="425" stroke="#2a9b5a" stroke-width="1.2" opacity="0.5" stroke-dasharray="4,3" marker-end="url(#ah2)"/>
           <text x="500" y="480" fill="#2a9b5a" font-size="8" opacity="0.7">MQTT pub</text>
 
+          <!-- ── Kafka -> Postgres Sink arrow ── -->
+          <line x1="1015" y1="660" x2="1015" y2="690" stroke="#c9952a" stroke-width="1.5" opacity="0.5" marker-end="url(#ah)"/>
+          <text x="1030" y="680" fill="#c9952a" font-size="8" opacity="0.7">sink</text>
+
+          <!-- ── Postgres Sink ── -->
+          <rect x="940" y="695" width="150" height="65" rx="12" fill="#faf8f5" stroke="#c9952a" stroke-width="2" filter="url(#glow)"/>
+          <text x="1015" y="722" text-anchor="middle" fill="#c9952a" font-size="18" font-weight="700">PostgreSQL</text>
+          <text x="1015" y="742" text-anchor="middle" fill="#8a8580" font-size="9">Port 5432 | salt DB</text>
+          <text x="1015" y="755" text-anchor="middle" fill="#8a8580" font-size="8">telemetry_readings, connection_events, agent_logs</text>
+
           <!-- ── 10 sensors label on left ── -->
-          <text x="140" y="710" text-anchor="middle" fill="#8a8580" font-size="9">10 sensors per vehicle: coolant temp, humidity, oil temp, battery, tire pressure,</text>
-          <text x="140" y="722" text-anchor="middle" fill="#8a8580" font-size="9">fuel level, speed, RPM, transmission temp, brake pad wear</text>
+          <text x="140" y="760" text-anchor="middle" fill="#8a8580" font-size="9">10 sensors per vehicle: coolant temp, humidity, oil temp, battery, tire pressure,</text>
+          <text x="140" y="772" text-anchor="middle" fill="#8a8580" font-size="9">fuel level, speed, RPM, transmission temp, brake pad wear</text>
         </svg>
       </div>
       <div class="arch-legend">
@@ -419,6 +429,7 @@
         <div class="arch-legend-item"><div class="arch-legend-dot" style="background:#f97316"></div> Kafka (12 topics)</div>
         <div class="arch-legend-item"><div class="arch-legend-dot" style="background:#3b7dd8"></div> Dashboard (FastAPI)</div>
         <div class="arch-legend-item"><div class="arch-legend-dot" style="background:#7c5cbf"></div> Browser (WebSocket)</div>
+        <div class="arch-legend-item"><div class="arch-legend-dot" style="background:#c9952a"></div> PostgreSQL (sink)</div>
         <div class="arch-legend-item"><div class="arch-legend-dot" style="background:#2a9b5a"></div> Health Agent</div>
       </div>
     </div>

@@ -104,6 +104,40 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # ── PostgreSQL ────────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: salt-postgres
+    environment:
+      POSTGRES_DB: salt
+      POSTGRES_USER: salt
+      POSTGRES_PASSWORD: salt
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./postgres-sink/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U salt -d salt"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
+  # ── Kafka-to-PostgreSQL Sink ─────────────────────────────────────────────────
+  postgres-sink:
+    build:
+      context: ./postgres-sink
+    container_name: salt-postgres-sink
+    command: ["python", "-u", "sink.py"]
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
   # ── Web Dashboard ─────────────────────────────────────────────────────────────
   web-dashboard:
     build:
@@ -115,3 +149,6 @@ services:
       kafka:
         condition: service_healthy
     restart: unless-stopped
+
+volumes:
+  pgdata:
