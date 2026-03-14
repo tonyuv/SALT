@@ -22,3 +22,4 @@ include = ["salt_agent*"]
 
 [tool.pytest.ini_options]
 testpaths = ["../tests/python"]
+asyncio_mode = "auto"
