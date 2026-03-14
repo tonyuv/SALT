@@ -1,0 +1,38 @@
+import pytest
+import torch
+from salt_agent.generator import Generator
+
+
+@pytest.fixture
+def generator():
+    return Generator(num_techniques=16, embedding_dim=384)
+
+
+def test_forward_returns_technique_distribution(generator):
+    current_stage = torch.tensor([[1, 0, 0, 0, 0, 0]], dtype=torch.float)
+    response_emb = torch.randn(1, 384)
+    history = torch.zeros(1, 10, dtype=torch.long)
+
+    probs = generator(current_stage, response_emb, history)
+    assert probs.shape == (1, 16)
+    assert abs(probs.sum().item() - 1.0) < 1e-5
+
+
+def test_select_technique_returns_valid_id(generator):
+    current_stage = torch.tensor([[0, 1, 0, 0, 0, 0]], dtype=torch.float)
+    response_emb = torch.randn(1, 384)
+    history = torch.zeros(1, 10, dtype=torch.long)
+
+    technique_idx = generator.select_technique(current_stage, response_emb, history)
+    assert 0 <= technique_idx < 16
+
+
+def test_batch_forward(generator):
+    batch_size = 4
+    current_stage = torch.zeros(batch_size, 6)
+    current_stage[:, 0] = 1.0
+    response_emb = torch.randn(batch_size, 384)
+    history = torch.zeros(batch_size, 10, dtype=torch.long)
+
+    probs = generator(current_stage, response_emb, history)
+    assert probs.shape == (batch_size, 16)
