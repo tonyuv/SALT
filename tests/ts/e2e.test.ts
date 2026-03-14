@@ -56,7 +56,7 @@ describe("E2E: Full SALT session", () => {
       sidecarPort,
     };
 
-    const session = new Session(config);
+    const session = new Session({ config });
     const result = await session.run();
 
     // Verify report structure
