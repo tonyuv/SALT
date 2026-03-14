@@ -94,7 +94,7 @@ def create_app() -> FastAPI:
         current_stage = torch.tensor([state.current_stage])
 
         with torch.no_grad():
-            stage_probs, confidence = state.discriminator(
+            stage_probs, confidence = state.discriminator.predict(
                 response_emb, technique_id, current_stage
             )
 

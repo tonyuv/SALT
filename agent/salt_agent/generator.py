@@ -14,7 +14,6 @@ class Generator(nn.Module):
         self.num_techniques = num_techniques
 
         self.technique_embedding = nn.Embedding(num_techniques + 1, 32, padding_idx=0)
-        # +1 for padding index 0
 
         self.history_encoder = nn.LSTM(
             input_size=32,
@@ -22,7 +21,6 @@ class Generator(nn.Module):
             batch_first=True,
         )
 
-        # stage one-hot (6) + response embedding (384) + history encoding (hidden_dim//2)
         input_dim = 6 + embedding_dim + hidden_dim // 2
 
         self.policy = nn.Sequential(
@@ -32,7 +30,7 @@ class Generator(nn.Module):
             nn.Linear(hidden_dim, hidden_dim // 2),
             nn.ReLU(),
             nn.Linear(hidden_dim // 2, num_techniques),
-            nn.Softmax(dim=-1),
+            nn.LogSoftmax(dim=-1),
         )
 
     def forward(
@@ -41,6 +39,7 @@ class Generator(nn.Module):
         response_embedding: torch.Tensor,
         technique_history: torch.Tensor,
     ) -> torch.Tensor:
+        """Returns log-probabilities over techniques."""
         hist_emb = self.technique_embedding(technique_history)
         _, (hist_hidden, _) = self.history_encoder(hist_emb)
         hist_context = hist_hidden.squeeze(0)
@@ -58,6 +57,7 @@ class Generator(nn.Module):
         technique_history: torch.Tensor,
     ) -> int:
         with torch.no_grad():
-            probs = self(current_stage_onehot, response_embedding, technique_history)
+            log_probs = self(current_stage_onehot, response_embedding, technique_history)
+            probs = torch.exp(log_probs)
             idx = torch.multinomial(probs, 1).item()
         return idx
