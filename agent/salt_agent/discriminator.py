@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class Discriminator(nn.Module):
@@ -19,10 +20,7 @@ class Discriminator(nn.Module):
             nn.Dropout(0.2),
         )
 
-        self.stage_head = nn.Sequential(
-            nn.Linear(hidden_dim // 2, 6),
-            nn.Softmax(dim=-1),
-        )
+        self.stage_head = nn.Linear(hidden_dim // 2, 6)
 
         self.confidence_head = nn.Sequential(
             nn.Linear(hidden_dim // 2, 1),
@@ -41,7 +39,17 @@ class Discriminator(nn.Module):
         combined = torch.cat([response_embedding, tech_emb, stage_emb], dim=-1)
         hidden = self.classifier(combined)
 
-        stage_probs = self.stage_head(hidden)
+        stage_logits = self.stage_head(hidden)
         confidence = self.confidence_head(hidden)
 
-        return stage_probs, confidence
+        return stage_logits, confidence
+
+    def predict(
+        self,
+        response_embedding: torch.Tensor,
+        technique_id: torch.Tensor,
+        current_stage: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Inference-time method that returns softmax probabilities."""
+        logits, confidence = self(response_embedding, technique_id, current_stage)
+        return F.softmax(logits, dim=-1), confidence
